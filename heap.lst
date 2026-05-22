@@ -1,0 +1,839 @@
+
+
+
+ARM Macro Assembler    Page 1 
+
+
+    1 00000000                 AREA             |.text|, CODE, READONLY, ALIGN=
+2
+    2 00000000                 THUMB
+    3 00000000         
+    4 00000000         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    5 00000000         ; System Call Table
+    6 00000000 20001000 
+                       HEAP_TOP
+                               EQU              0x20001000
+    7 00000000 20004FE0 
+                       HEAP_BOT
+                               EQU              0x20004FE0
+    8 00000000 00004000 
+                       MAX_SIZE
+                               EQU              0x00004000  ; 16KB = 2^14
+    9 00000000 00000020 
+                       MIN_SIZE
+                               EQU              0x00000020  ; 32B  = 2^5
+   10 00000000         
+   11 00000000 20006800 
+                       MCB_TOP EQU              0x20006800  ; 2^10B = 1K Space
+   12 00000000 20006BFE 
+                       MCB_BOT EQU              0x20006BFE
+   13 00000000 00000002 
+                       MCB_ENT_SZ
+                               EQU              0x00000002  ; 2B per entry
+   14 00000000 00000200 
+                       MCB_TOTAL
+                               EQU              512         ; 2^9 = 512 entries
+                                                            
+   15 00000000         
+   16 00000000 FFFFFFFF 
+                       INVALID EQU              -1          ; an invalid id
+   17 00000000         
+   18 00000000         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   19 00000000         ; Memory Control Block Initialization
+   20 00000000                 EXPORT           _heap_init
+   21 00000000         _heap_init
+   22 00000000         ;; Implement by yourself
+   23 00000000 487F            LDR              R0, =MCB_TOP
+   24 00000002 F44F 4180       LDR              R1, =MAX_SIZE
+   25 00000006 6001            STR              R1, [R0]    ;Indicate Available
+                                                             Max Size Space in 
+                                                            Heap
+   26 00000008         
+   27 00000008 497E            LDR              R1, =MCB_BOT
+   28 0000000A F04F 0200       MOV              R2, #0
+   29 0000000E         zero_heap
+   30 0000000E F840 2F04       STR              R2, [R0, #4]! ;Set heap word va
+                                                            lue to 0 with Pre-i
+                                                            ndex writeback
+   31 00000012 4288            CMP              R0, R1      ;Compare whether re
+                                                            ached bottom of hea
+                                                            p
+   32 00000014 D9FB            BLS              zero_heap   ;Keep going if less
+                                                             than or equal to M
+                                                            CB_BOT
+
+
+
+ARM Macro Assembler    Page 2 
+
+
+   33 00000016         heap_end
+   34 00000016 46F7            MOV              pc, lr
+   35 00000018         
+   36 00000018         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   37 00000018         ; Kernel Memory Allocation
+   38 00000018         ; void* _k_alloc( int size )
+   39 00000018                 EXPORT           _kalloc
+   40 00000018         _kalloc
+   41 00000018         ;; Implement by yourself
+   42 00000018 4979            LDR              R1, =MCB_TOP ;R1 = Left
+   43 0000001A 4A7A            LDR              R2, =MCB_BOT ;R2 = Right
+   44 0000001C 2820            CMP              R0, #32     ;R0 = Size
+   45 0000001E D202            BHS              _ralloc
+   46 00000020 F04F 0020       MOV              R0, #32     ;Set minimum size
+   47 00000024 E7FF            B                _ralloc
+   48 00000026         
+   49 00000026         _ralloc                              ;Equivalent Helper 
+                                                            Function
+   50 00000026 B500            PUSH{LR}
+   51 00000028         
+   52 00000028 EBA2 0301       SUB              R3, R2, R1
+   53 0000002C F04F 0402       LDR              R4, =MCB_ENT_SZ
+   54 00000030 4423            ADD              R3, R4      ;R3 = entire
+   55 00000032 EA4F 0453       LSR              R4, R3, #1  ;R4 = half
+   56 00000036 EB01 0504       ADD              R5, R1, R4  ;R5 = midpoint
+   57 0000003A EA4F 1603       LSL              R6, R3, #4  ;R6 = act_entire_si
+                                                            ze
+   58 0000003E EA4F 1704       LSL              R7, R4, #4  ;R7 = act_half_size
+                                                            
+   59 00000042 F04F 3CFF       LDR              R12, =INVALID ;R12 = heap_addr
+   60 00000046         
+   61 00000046 42B8            CMP              R0, R7
+   62 00000048 D915            BLS              _allocMove  ;Skip allocation if
+                                                             size < act_half_si
+                                                            ze
+   63 0000004A         
+   64 0000004A F8D1 8000       LDR              R8, [R1]
+   65 0000004E EA5F 0958       LSRS             R9, R8, #1  ;Check if occupy bi
+                                                            t is 1 by dividing 
+                                                            2 and find carry bi
+                                                            t
+   66 00000052 D20D            BCS              _allocReturn ;Carry bit present
+                                                             then is occupied
+   67 00000054         _allocAddress                        ;Allocate Space
+   68 00000054 F106 0601       ADD              R6, #1
+   69 00000058 700E            STRB             R6, [R1]
+   70 0000005A F8DF B1AC       LDR              R11, =HEAP_TOP
+   71 0000005E F8DF A1A0       LDR              R10, =MCB_TOP
+   72 00000062 468C            MOV              R12, R1
+   73 00000064 EBAC 0C0A       SUB              R12, R10    ;Left - MCB_TOP
+   74 00000068 EA4F 1C0C       LSL              R12, #4     ;multiply by 16
+   75 0000006C 44DC            ADD              R12, R11    ;Add HEAP_TOP for f
+                                                            inal heap_addr
+   76 0000006E 4660            MOV              R0, R12     ;Return Heap Addres
+                                                            s
+   77 00000070         
+   78 00000070         _allocReturn
+   79 00000070 F85D EB04       POP              {LR}
+
+
+
+ARM Macro Assembler    Page 3 
+
+
+   80 00000074 4770            BX               LR
+   81 00000076         
+   82 00000076         _allocMove
+   83 00000076 F8D1 8000       LDR              R8, [R1]    ;Value at left
+   84 0000007A F1B8 0F00       CMP              R8, #0      ;Compare if left va
+                                                            lue is 0x0000
+   85 0000007E D004            BEQ              _preAssign  ;If so can preAssig
+                                                            n
+   86 00000080 45B8            CMP              R8, R7      ;if word value > ac
+                                                            t_half_size
+   87 00000082 D903            BLS              _allocBigBudSize ;Check both ar
+                                                            e true
+   88 00000084 EA5F 0958       LSRS             R9, R8, #1  ;Check if not occup
+                                                            ied
+   89 00000088 D200            BCS              _allocBigBudSize
+   90 0000008A         
+   91 0000008A         _preAssign
+   92 0000008A 600F            STR              R7, [R1]    ;Assign left with a
+                                                            ct_half_size
+   93 0000008C         
+   94 0000008C         _allocBigBudSize
+   95 0000008C F8D5 A000       LDR              R10, [R5]   ;Word value of Midp
+                                                            oint
+   96 00000090 45B8            CMP              R8, R7      ;if midpoint value 
+                                                            > act_half_size
+   97 00000092 D902            BLS              _allocSameBudSize ;If at least 
+                                                            1 is not true try o
+                                                            ther option
+   98 00000094 EA5F 0958       LSRS             R9, R8, #1  ;Check if not occup
+                                                            ied
+   99 00000098 D304            BCC              _allocBuddy
+  100 0000009A         _allocSameBudSize
+  101 0000009A F1BA 0F00       CMP              R10, #0     ;Check if midpoint 
+                                                            is empty
+  102 0000009E D102            BNE              _leftAlloc
+  103 000000A0 45B8            CMP              R8, R7      ;if left wordvalue 
+                                                            == act_half_size
+  104 000000A2 D100            BNE              _leftAlloc
+  105 000000A4         
+  106 000000A4         _allocBuddy
+  107 000000A4 602F            STR              R7, [R5]    ;assign buddy act_h
+                                                            alf_size to midpoin
+                                                            t address
+  108 000000A6         
+  109 000000A6         _leftAlloc
+  110 000000A6 B4FE            PUSH{R1-R7}                  ;Need to maintain p
+                                                            revious recursive i
+                                                            nformation
+  111 000000A8 462A            MOV              R2, R5      ;Assign midpoint as
+                                                             right
+  112 000000AA F04F 0902       LDR              R9, =MCB_ENT_SZ
+  113 000000AE EBA2 0209       SUB              R2, R9      ;midpoint-mcb_ent_s
+                                                            z
+  114 000000B2 F7FF FFB8       BL               _ralloc
+  115 000000B6         ;See if Right Is Needed
+  116 000000B6 BCFE            POP              {R1-R7}
+  117 000000B8 F04F 3BFF       LDR              R11, =INVALID
+  118 000000BC 45DC            CMP              R12, R11    ;Check if heap_addr
+                                                             is NULL
+
+
+
+ARM Macro Assembler    Page 4 
+
+
+  119 000000BE D10A            BNE              _rallocDone
+  120 000000C0 F8D1 8000       LDR              R8, [R1]
+  121 000000C4 45B0            CMP              R8, R6
+  122 000000C6 D006            BEQ              _rallocDone ;Check if value of 
+                                                            left address == act
+                                                            _entire_size
+  123 000000C8 F106 0901       ADD              R9, R6, #1
+  124 000000CC 45C8            CMP              R8, R9
+  125 000000CE D002            BEQ              _rallocDone ;Check if value of 
+                                                            left address == act
+                                                            _entire_size + 1
+  126 000000D0         _rightAlloc
+  127 000000D0 4629            MOV              R1, R5      ;Assign midpoint as
+                                                             left
+  128 000000D2 F7FF FFA8       BL               _ralloc
+  129 000000D6         
+  130 000000D6         _rallocDone
+  131 000000D6 F85D EB04       POP              {LR}
+  132 000000DA 46F7            MOV              pc, lr
+  133 000000DC         
+  134 000000DC         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  135 000000DC         ; Kernel Memory De-allocation
+  136 000000DC         ; void free( void *ptr )
+  137 000000DC                 EXPORT           _kfree
+  138 000000DC         _kfree
+  139 000000DC         ;; Implement by yourself
+  140 000000DC         ;R0 = ptr/addr
+  141 000000DC 494A            LDR              R1, =HEAP_TOP
+  142 000000DE 4A4B            LDR              R2, =HEAP_BOT
+  143 000000E0 4288            CMP              R0, R1
+  144 000000E2 D348            BLO              _kfreeNull
+  145 000000E4 4290            CMP              R0, R2
+  146 000000E6 D846            BHI              _kfreeNull
+  147 000000E8         
+  148 000000E8 EBA0 0101       SUB              R1, R0, R1  ;addr - heap_top
+  149 000000EC EA4F 1111       LSR              R1, #4      ;Divide by 16
+  150 000000F0 4A43            LDR              R2, =MCB_TOP
+  151 000000F2 4411            ADD              R1, R2      ;R1 = MCB_ADDR
+  152 000000F4         
+  153 000000F4         _rfreeValid
+  154 000000F4 680A            LDR              R2, [R1]
+  155 000000F6 0852            LSRS             R2, #1      ;Check if is occupi
+                                                            ed and needs to be 
+                                                            freed
+  156 000000F8 BF38 2000       MOVCC            R0, #0      ;Return 0 value for
+                                                             invalid
+  157 000000FC D33D            BCC              _kfreeDone
+  158 000000FE         _rfree
+  159 000000FE B500            PUSH{LR}
+  160 00000100 4A3F            LDR              R2, =MCB_TOP
+  161 00000102 EBA1 0202       SUB              R2, R1, R2  ;R2 = mcb_offset
+  162 00000106 680B            LDR              R3, [R1]    ;R3 = mcb_contents
+  163 00000108 EA4F 1313       LSR              R3, #4      ;Divide by 16
+  164 0000010C 461C            MOV              R4, R3      ;R4 = mcb_chunk
+  165 0000010E EA4F 1303       LSL              R3, #4      ;Clear used Bit
+  166 00000112 461D            MOV              R5, R3      ;R5 = my_size
+  167 00000114 600B            STR              R3, [R1]    ;Assign new cleared
+                                                             value
+
+
+
+ARM Macro Assembler    Page 5 
+
+
+  168 00000116         
+  169 00000116 FBB2 F6F4       UDIV             R6, R2, R4  ;Divide MCB_OFFSET 
+                                                            by MCB_CHUNK
+  170 0000011A 0876            LSRS             R6, #1      ;Divide by 2 and ch
+                                                            eck for Carry Bit
+  171 0000011C D212            BCS              _freeRight
+  172 0000011E         
+  173 0000011E         _freeLeft
+  174 0000011E EB01 0604       ADD              R6, R1, R4  ;MCB_BUDDY
+  175 00000122 4F38            LDR              R7, =MCB_BOT
+  176 00000124 42BE            CMP              R6, R7
+  177 00000126 D821            BHI              _freeRecursive
+  178 00000128 6837            LDR              R7, [R6]    ;Value of Buddy
+  179 0000012A F8D1 8000       LDR              R8, [R1]    ;Value of MCB_ADDR
+  180 0000012E 4547            CMP              R7, R8
+  181 00000130 D11C            BNE              _freeRecursive
+  182 00000132 F04F 0700       MOV              R7, #0      ;Clear Buddy
+  183 00000136 6037            STR              R7, [R6]
+  184 00000138 EA4F 0545       LSL              R5, #1      ;Merge Buddy
+  185 0000013C 600D            STR              R5, [R1]
+  186 0000013E F7FF FFDE       BL               _rfree      ;Recursive Call _rf
+                                                            ree(mcb_addr)
+  187 00000142 E013            B                _freeRecursive
+  188 00000144         _freeRight
+  189 00000144 EBA1 0604       SUB              R6, R1, R4  ;MCB_BUDDY
+  190 00000148 4F2D            LDR              R7, =MCB_TOP
+  191 0000014A 42BE            CMP              R6, R7
+  192 0000014C D30E            BLO              _freeRecursive
+  193 0000014E 6837            LDR              R7, [R6]    ;Value of Buddy
+  194 00000150 F8D1 8000       LDR              R8, [R1]    ;Value of MCB_ADDR
+  195 00000154 4547            CMP              R7, R8
+  196 00000156 D109            BNE              _freeRecursive
+  197 00000158 F04F 0800       MOV              R8, #0      ;Clear Right MCB
+  198 0000015C F8C1 8000       STR              R8, [R1]
+  199 00000160 EA4F 0545       LSL              R5, #1      ;Left buddy is new 
+                                                            MCB
+  200 00000164 6035            STR              R5, [R6]
+  201 00000166 4631            MOV              R1, R6
+  202 00000168 F7FF FFC9       BL               _rfree
+  203 0000016C         
+  204 0000016C         _freeRecursive
+  205 0000016C F85D EB04       POP{LR}
+  206 00000170 4770            BX               LR
+  207 00000172 2900            CMP              R1, #0
+  208 00000174 D101            BNE              _kfreeDone
+  209 00000176         
+  210 00000176         _kfreeNull
+  211 00000176 F04F 30FF       LDR              R0, =INVALID ;Return Invalid
+  212 0000017A         _kfreeDone
+  213 0000017A F85D EB04       POP{LR}
+  214 0000017E 46F7            MOV              pc, lr      ; return from rfree
+                                                            ( )
+  215 00000180         
+  216 00000180         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;
+  217 00000180         ;void* _memcpy(void* dest, const void* src, int size)
+  218 00000180                 EXPORT           _kmemcpy
+  219 00000180         ;R0: dest heap address
+  220 00000180         ;R1: src heap address
+
+
+
+ARM Macro Assembler    Page 6 
+
+
+  221 00000180         ;R2: size bytes
+  222 00000180         _kmemcpy
+  223 00000180         ;Calculate MCB Addresses
+  224 00000180 2800            CMP              R0, #0
+  225 00000182 D93B            BLS              _memcpyDone
+  226 00000184 4B1E            LDR              R3, =MCB_TOP
+  227 00000186 4C20            LDR              R4, =HEAP_TOP
+  228 00000188 EBA0 0504       SUB              R5, R0, R4
+  229 0000018C EB03 1515       ADD              R5, R3, R5, LSR #4 ;R5 = mcb_ad
+                                                            dr of dest
+  230 00000190 EBA1 0604       SUB              R6, R1, R4
+  231 00000194 EB03 1616       ADD              R6, R3, R6, LSR #4 ;R6 = mcb_ad
+                                                            dr of src
+  232 00000198         
+  233 00000198         ;Check for size so no overflow occurs
+  234 00000198 6837            LDR              R7, [R6]    ;Size + Occupy of S
+                                                            RC
+  235 0000019A F8D5 8000       LDR              R8, [R5]    ;Size + Occupy of D
+                                                            EST
+  236 0000019E F1A7 0701       SUB              R7, #1      ;Assume to be occup
+                                                            ied
+  237 000001A2 F1A8 0801       SUB              R8, #1
+  238 000001A6 4603            MOV              R3, R0      ;R3 = Iterating Hea
+                                                            p Address of Dest
+  239 000001A8 460C            MOV              R4, R1      ;R4 = Iterating Hea
+                                                            p Address of SRC
+  240 000001AA 42BA            CMP              R2, R7      ;Compare Size want 
+                                                            to copy and actual 
+                                                            source size
+  241 000001AC D813            BHI              _biggerSize
+  242 000001AE         
+  243 000001AE         _smallerSize                         ;Size <= SRC Size
+  244 000001AE 4542            CMP              R2, R8      ;Compare Size and d
+                                                            est size
+  245 000001B0 BF88 4642       MOVHI            R2, R8      ;If size > dest siz
+                                                            e then use dest siz
+                                                            e instead
+  246 000001B4 EB03 0508       ADD              R5, R3, R8  ;R5 = Last Finishin
+                                                            g Address DEST
+  247 000001B8 EB04 0602       ADD              R6, R4, R2  ;R6 = Last Finishin
+                                                            g Address SRC
+  248 000001BC         _cpyAssign
+  249 000001BC 7827            LDRB             R7, [R4]    ;Retrieve byte from
+                                                             SRC
+  250 000001BE 701F            STRB             R7, [R3]    ;Assign byte from S
+                                                            RC to Dest
+  251 000001C0 F103 0301       ADD              R3, #1
+  252 000001C4 F104 0401       ADD              R4, #1
+  253 000001C8 42B4            CMP              R4, R6      ;Compare if src cop
+                                                            y is done
+  254 000001CA D1F7            BNE              _cpyAssign
+  255 000001CC 42AB            CMP              R3, R5      ;Compare if need to
+                                                             zero rest of dest
+  256 000001CE D015            BEQ              _memcpyDone
+  257 000001D0 F04F 0700       MOV              R7, #0
+  258 000001D4 E00D            B                _zeroCpy
+  259 000001D6         _biggerSize                          ;Size > SRC Size
+  260 000001D6 4542            CMP              R2, R8      ;Compare Size and d
+                                                            est size
+
+
+
+ARM Macro Assembler    Page 7 
+
+
+  261 000001D8 D900            BLS              _lessBigger
+  262 000001DA E004            B                _moreBigger
+  263 000001DC         _lessBigger
+  264 000001DC EB03 0508       ADD              R5, R3, R8  ;R5 = Last Finishin
+                                                            g Address DEST
+  265 000001E0 EB04 0607       ADD              R6, R4, R7  ;R6 = Last Finishin
+                                                            g Address SRC (Max 
+                                                            without overflow)
+  266 000001E4 E7EA            B                _cpyAssign
+  267 000001E6         _moreBigger
+  268 000001E6 4642            MOV              R2, R8      ;Use dest size inst
+                                                            ead
+  269 000001E8 EB03 0502       ADD              R5, R3, R2  ;R5 = Last Finishin
+                                                            g Address DEST
+  270 000001EC EB04 0607       ADD              R6, R4, R7  ;R6 = Last Finishin
+                                                            g Address SRC (Max 
+                                                            without overflow)
+  271 000001F0 E7E4            B                _cpyAssign
+  272 000001F2         _zeroCpy
+  273 000001F2 701F            STRB             R7, [R3]    ;Assign byte of des
+                                                            t to 0
+  274 000001F4 F103 0301       ADD              R3, #1      ;Increment dest add
+                                                            ress
+  275 000001F8 42AB            CMP              R3, R5      ;Compare if dest ze
+                                                            ro is done
+  276 000001FA D1FA            BNE              _zeroCpy
+  277 000001FC         _memcpyDone
+  278 000001FC 46F7            MOV              PC,LR
+  279 000001FE                 END
+              00 00 20006800 
+              20006BFE 
+              20001000 
+              20004FE0 
+Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M4.fp --apcs=int
+erwork --depend=.\heap_1.d -o.\heap_1.o -I.\RTE\_Target_1 -I"C:\Program Files\K
+eil\ARM\PACK\ARM\CMSIS\5.9.0\CMSIS\Core\Include" -I"C:\Program Files\Keil\ARM\P
+ACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C129" --predefine="__EVAL SETA 1" --p
+redefine="__UVISION_VERSION SETA 526" --predefine="_RTE_ SETA 1" --predefine="T
+M4C129XNCZAD SETA 1" --list=.\heap.lst heap.s
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+.text 00000000
+
+Symbol: .text
+   Definitions
+      At line 1 in file heap.s
+   Uses
+      None
+Comment: .text unused
+_allocAddress 00000054
+
+Symbol: _allocAddress
+   Definitions
+      At line 67 in file heap.s
+   Uses
+      None
+Comment: _allocAddress unused
+_allocBigBudSize 0000008C
+
+Symbol: _allocBigBudSize
+   Definitions
+      At line 94 in file heap.s
+   Uses
+      At line 87 in file heap.s
+      At line 89 in file heap.s
+
+_allocBuddy 000000A4
+
+Symbol: _allocBuddy
+   Definitions
+      At line 106 in file heap.s
+   Uses
+      At line 99 in file heap.s
+Comment: _allocBuddy used once
+_allocMove 00000076
+
+Symbol: _allocMove
+   Definitions
+      At line 82 in file heap.s
+   Uses
+      At line 62 in file heap.s
+Comment: _allocMove used once
+_allocReturn 00000070
+
+Symbol: _allocReturn
+   Definitions
+      At line 78 in file heap.s
+   Uses
+      At line 66 in file heap.s
+Comment: _allocReturn used once
+_allocSameBudSize 0000009A
+
+Symbol: _allocSameBudSize
+   Definitions
+      At line 100 in file heap.s
+   Uses
+      At line 97 in file heap.s
+Comment: _allocSameBudSize used once
+_biggerSize 000001D6
+
+
+
+
+ARM Macro Assembler    Page 2 Alphabetic symbol ordering
+Relocatable symbols
+
+Symbol: _biggerSize
+   Definitions
+      At line 259 in file heap.s
+   Uses
+      At line 241 in file heap.s
+Comment: _biggerSize used once
+_cpyAssign 000001BC
+
+Symbol: _cpyAssign
+   Definitions
+      At line 248 in file heap.s
+   Uses
+      At line 254 in file heap.s
+      At line 266 in file heap.s
+      At line 271 in file heap.s
+
+_freeLeft 0000011E
+
+Symbol: _freeLeft
+   Definitions
+      At line 173 in file heap.s
+   Uses
+      None
+Comment: _freeLeft unused
+_freeRecursive 0000016C
+
+Symbol: _freeRecursive
+   Definitions
+      At line 204 in file heap.s
+   Uses
+      At line 177 in file heap.s
+      At line 181 in file heap.s
+      At line 187 in file heap.s
+      At line 192 in file heap.s
+      At line 196 in file heap.s
+
+_freeRight 00000144
+
+Symbol: _freeRight
+   Definitions
+      At line 188 in file heap.s
+   Uses
+      At line 171 in file heap.s
+Comment: _freeRight used once
+_heap_init 00000000
+
+Symbol: _heap_init
+   Definitions
+      At line 21 in file heap.s
+   Uses
+      At line 20 in file heap.s
+Comment: _heap_init used once
+_kalloc 00000018
+
+Symbol: _kalloc
+   Definitions
+      At line 40 in file heap.s
+   Uses
+      At line 39 in file heap.s
+
+
+
+ARM Macro Assembler    Page 3 Alphabetic symbol ordering
+Relocatable symbols
+
+Comment: _kalloc used once
+_kfree 000000DC
+
+Symbol: _kfree
+   Definitions
+      At line 138 in file heap.s
+   Uses
+      At line 137 in file heap.s
+Comment: _kfree used once
+_kfreeDone 0000017A
+
+Symbol: _kfreeDone
+   Definitions
+      At line 212 in file heap.s
+   Uses
+      At line 157 in file heap.s
+      At line 208 in file heap.s
+
+_kfreeNull 00000176
+
+Symbol: _kfreeNull
+   Definitions
+      At line 210 in file heap.s
+   Uses
+      At line 144 in file heap.s
+      At line 146 in file heap.s
+
+_kmemcpy 00000180
+
+Symbol: _kmemcpy
+   Definitions
+      At line 222 in file heap.s
+   Uses
+      At line 218 in file heap.s
+Comment: _kmemcpy used once
+_leftAlloc 000000A6
+
+Symbol: _leftAlloc
+   Definitions
+      At line 109 in file heap.s
+   Uses
+      At line 102 in file heap.s
+      At line 104 in file heap.s
+
+_lessBigger 000001DC
+
+Symbol: _lessBigger
+   Definitions
+      At line 263 in file heap.s
+   Uses
+      At line 261 in file heap.s
+Comment: _lessBigger used once
+_memcpyDone 000001FC
+
+Symbol: _memcpyDone
+   Definitions
+      At line 277 in file heap.s
+   Uses
+      At line 225 in file heap.s
+
+
+
+ARM Macro Assembler    Page 4 Alphabetic symbol ordering
+Relocatable symbols
+
+      At line 256 in file heap.s
+
+_moreBigger 000001E6
+
+Symbol: _moreBigger
+   Definitions
+      At line 267 in file heap.s
+   Uses
+      At line 262 in file heap.s
+Comment: _moreBigger used once
+_preAssign 0000008A
+
+Symbol: _preAssign
+   Definitions
+      At line 91 in file heap.s
+   Uses
+      At line 85 in file heap.s
+Comment: _preAssign used once
+_ralloc 00000026
+
+Symbol: _ralloc
+   Definitions
+      At line 49 in file heap.s
+   Uses
+      At line 45 in file heap.s
+      At line 47 in file heap.s
+      At line 114 in file heap.s
+      At line 128 in file heap.s
+
+_rallocDone 000000D6
+
+Symbol: _rallocDone
+   Definitions
+      At line 130 in file heap.s
+   Uses
+      At line 119 in file heap.s
+      At line 122 in file heap.s
+      At line 125 in file heap.s
+
+_rfree 000000FE
+
+Symbol: _rfree
+   Definitions
+      At line 158 in file heap.s
+   Uses
+      At line 186 in file heap.s
+      At line 202 in file heap.s
+
+_rfreeValid 000000F4
+
+Symbol: _rfreeValid
+   Definitions
+      At line 153 in file heap.s
+   Uses
+      None
+Comment: _rfreeValid unused
+_rightAlloc 000000D0
+
+Symbol: _rightAlloc
+
+
+
+ARM Macro Assembler    Page 5 Alphabetic symbol ordering
+Relocatable symbols
+
+   Definitions
+      At line 126 in file heap.s
+   Uses
+      None
+Comment: _rightAlloc unused
+_smallerSize 000001AE
+
+Symbol: _smallerSize
+   Definitions
+      At line 243 in file heap.s
+   Uses
+      None
+Comment: _smallerSize unused
+_zeroCpy 000001F2
+
+Symbol: _zeroCpy
+   Definitions
+      At line 272 in file heap.s
+   Uses
+      At line 258 in file heap.s
+      At line 276 in file heap.s
+
+heap_end 00000016
+
+Symbol: heap_end
+   Definitions
+      At line 33 in file heap.s
+   Uses
+      None
+Comment: heap_end unused
+zero_heap 0000000E
+
+Symbol: zero_heap
+   Definitions
+      At line 29 in file heap.s
+   Uses
+      At line 32 in file heap.s
+Comment: zero_heap used once
+32 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Absolute symbols
+
+HEAP_BOT 20004FE0
+
+Symbol: HEAP_BOT
+   Definitions
+      At line 7 in file heap.s
+   Uses
+      At line 142 in file heap.s
+Comment: HEAP_BOT used once
+HEAP_TOP 20001000
+
+Symbol: HEAP_TOP
+   Definitions
+      At line 6 in file heap.s
+   Uses
+      At line 70 in file heap.s
+      At line 141 in file heap.s
+      At line 227 in file heap.s
+
+INVALID FFFFFFFF
+
+Symbol: INVALID
+   Definitions
+      At line 16 in file heap.s
+   Uses
+      At line 59 in file heap.s
+      At line 117 in file heap.s
+      At line 211 in file heap.s
+
+MAX_SIZE 00004000
+
+Symbol: MAX_SIZE
+   Definitions
+      At line 8 in file heap.s
+   Uses
+      At line 24 in file heap.s
+Comment: MAX_SIZE used once
+MCB_BOT 20006BFE
+
+Symbol: MCB_BOT
+   Definitions
+      At line 12 in file heap.s
+   Uses
+      At line 27 in file heap.s
+      At line 43 in file heap.s
+      At line 175 in file heap.s
+
+MCB_ENT_SZ 00000002
+
+Symbol: MCB_ENT_SZ
+   Definitions
+      At line 13 in file heap.s
+   Uses
+      At line 53 in file heap.s
+      At line 112 in file heap.s
+
+MCB_TOP 20006800
+
+Symbol: MCB_TOP
+   Definitions
+
+
+
+ARM Macro Assembler    Page 2 Alphabetic symbol ordering
+Absolute symbols
+
+      At line 11 in file heap.s
+   Uses
+      At line 23 in file heap.s
+      At line 42 in file heap.s
+      At line 71 in file heap.s
+      At line 150 in file heap.s
+      At line 160 in file heap.s
+      At line 190 in file heap.s
+      At line 226 in file heap.s
+
+MCB_TOTAL 00000200
+
+Symbol: MCB_TOTAL
+   Definitions
+      At line 14 in file heap.s
+   Uses
+      None
+Comment: MCB_TOTAL unused
+MIN_SIZE 00000020
+
+Symbol: MIN_SIZE
+   Definitions
+      At line 9 in file heap.s
+   Uses
+      None
+Comment: MIN_SIZE unused
+9 symbols
+378 symbols in table

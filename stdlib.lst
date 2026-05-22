@@ -1,0 +1,321 @@
+
+
+
+ARM Macro Assembler    Page 1 
+
+
+    1 00000000                 AREA             |.text|, CODE, READONLY, ALIGN=
+2
+    2 00000000                 THUMB
+    3 00000000         
+    4 00000000         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    5 00000000         ; void _bzero( void *s, int n )
+    6 00000000         ; Parameters
+    7 00000000         ; s   - pointer to the memory location to zero-initializ
+                       e
+    8 00000000         ; n  - a number of bytes to zero-initialize
+    9 00000000         ; Return value
+   10 00000000         ;   none
+   11 00000000                 EXPORT           _bzero
+   12 00000000         _bzero
+   13 00000000         ; implement your complete logic, including stack operati
+                       ons
+   14 00000000         ;R0 = *s
+   15 00000000         ;R1 = n
+   16 00000000 F04F 0400       LDR              R4, =0x0    ;Register to Load
+   17 00000004         
+   18 00000004 3901    bzeroLoop
+                               SUBS             R1, #1      ;decrement counter 
+                                                            by 1 for number of 
+                                                            bytes left to inita
+                                                            lize
+   19 00000006 D402            BMI              end_bzero   ;If negative then e
+                                                            nd
+   20 00000008 F800 4B01       STRB             R4, [R0], #1 ;Store by Byte. Po
+                                                            st-index offset by 
+                                                            1 byte
+   21 0000000C E7FA            B                bzeroLoop
+   22 0000000E         
+   23 0000000E F04F 0000 
+                       end_bzero
+                               LDR              R0, =0x0    ;makes sure return 
+                                                            value is null
+   24 00000012 F04F 0100       LDR              R1, =0x0
+   25 00000016 46F7            MOV              pc, lr
+   26 00000018         
+   27 00000018         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   28 00000018         ; char* _strncpy( char* dest, char* src, int size )
+   29 00000018         ; Parameters
+   30 00000018         ;    dest  - pointer to the buffer to copy to
+   31 00000018         ; src - pointer to the zero-terminated string to copy fr
+                       om
+   32 00000018         ; size - a total of n bytes
+   33 00000018         ; Return value
+   34 00000018         ;   dest
+   35 00000018                 EXPORT           _strncpy
+   36 00000018         _strncpy
+   37 00000018         ; implement your complete logic, including stack operati
+                       ons
+   38 00000018         ;R0 = *dest
+   39 00000018         ;R1 = *src
+   40 00000018         ;R2 = size
+   41 00000018         ;R4 = store src byte
+   42 00000018 4605            MOV              R5, R0      ;Copy address of de
+
+
+
+ARM Macro Assembler    Page 2 
+
+
+                                                            st so R0 can be des
+                                                            t can be returned
+   43 0000001A         
+   44 0000001A 3A01    strncpyLoop
+                               SUBS             R2, #1      ;decrement counter 
+                                                            by 1 for number of 
+                                                            bytes left to copy
+   45 0000001C D404            BMI              end_strncpy
+   46 0000001E F811 4B01       LDRB             R4, [R1], #1 ;Load by byte from
+                                                             src. Post-index of
+                                                            fset by 1 byte
+   47 00000022 F805 4B01       STRB             R4, [R5], #1 ;Store copied byte
+                                                             to dest. Post-inde
+                                                            x offset by 1 byte
+   48 00000026 E7F8            B                strncpyLoop
+   49 00000028         
+   50 00000028 F04F 0100 
+                       end_strncpy
+                               LDR              R1, =0x0    ;Make sure return v
+                                                            alue for R1 is null
+                                                             from not double
+   51 0000002C 46F7            MOV              pc, lr
+   52 0000002E         
+   53 0000002E         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   54 0000002E         ; void* _malloc( int size )
+   55 0000002E         ; Parameters
+   56 0000002E         ; size - #bytes to allocate
+   57 0000002E         ; Return value
+   58 0000002E         ;    void* a pointer to the allocated space
+   59 0000002E                 EXPORT           _malloc
+   60 0000002E         _malloc
+   61 0000002E         ; save registers
+   62 0000002E E92D 5FF0       PUSH             {LR, R4-R12}
+   63 00000032         ; set the system call # to R7
+   64 00000032 F04F 0703       MOV              R7, #3
+   65 00000036 DF00            SVC              #0x0
+   66 00000038         ; resume registers
+   67 00000038 E8BD 5FF0       POP              {LR, R4-R12}
+   68 0000003C 46F7            MOV              pc, lr
+   69 0000003E         
+   70 0000003E         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   71 0000003E         ; void _free( void* addr )
+   72 0000003E         ; Parameters
+   73 0000003E         ; size - the address of a space to deallocate
+   74 0000003E         ; Return value
+   75 0000003E         ;    none
+   76 0000003E                 EXPORT           _free
+   77 0000003E         _free
+   78 0000003E         ; save registers
+   79 0000003E E92D 5FF0       PUSH             {LR, R4-R12}
+   80 00000042         ; set the system call # to R7
+   81 00000042 F04F 0704       MOV              R7, #4
+   82 00000046 DF00            SVC              #0x0
+   83 00000048         ; resume registers
+   84 00000048 E8BD 5FF0       POP              {LR, R4-R12}
+   85 0000004C 46F7            MOV              pc, lr
+   86 0000004E         
+
+
+
+ARM Macro Assembler    Page 3 
+
+
+   87 0000004E         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   88 0000004E         ; unsigned int _alarm( unsigned int seconds )
+   89 0000004E         ; Parameters
+   90 0000004E         ;   seconds - seconds when a SIGALRM signal should be de
+                       livered to the calling program 
+   91 0000004E         ; Return value
+   92 0000004E         ;   unsigned int - the number of seconds remaining until
+                        any previously scheduled alarm
+   93 0000004E         ;                  was due to be delivered, or zero if t
+                       here was no previously schedul-
+   94 0000004E         ;                  ed alarm. 
+   95 0000004E                 EXPORT           _alarm
+   96 0000004E         _alarm
+   97 0000004E         ; save registers
+   98 0000004E E92D 5FF0       PUSH             {LR, R4-R12}
+   99 00000052         ; set the system call # to R7
+  100 00000052 F04F 0701       MOV              R7, #1
+  101 00000056 DF00            SVC              #0x0
+  102 00000058         ; resume registers
+  103 00000058 E8BD 5FF0       POP              {LR, R4-R12}
+  104 0000005C 46F7            MOV              pc, lr
+  105 0000005E         
+  106 0000005E         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  107 0000005E         ; void* _signal( int signum, void *handler )
+  108 0000005E         ; Parameters
+  109 0000005E         ;   signum - a signal number (assumed to be 14 = SIGALRM
+                       )
+  110 0000005E         ;   handler - a pointer to a user-level signal handling 
+                       function
+  111 0000005E         ; Return value
+  112 0000005E         ;   void*   - a pointer to the user-level signal handlin
+                       g function previously handled
+  113 0000005E         ;             (the same as the 2nd parameter in this pro
+                       ject)
+  114 0000005E                 EXPORT           _signal
+  115 0000005E         _signal
+  116 0000005E         ; save registers
+  117 0000005E E92D 5FF0       PUSH             {LR, R4-R12}
+  118 00000062         ; set the system call # to R7
+  119 00000062 F04F 0702       MOV              R7, #2
+  120 00000066 DF00            SVC              #0x0
+  121 00000068         ; resume registers
+  122 00000068 E8BD 5FF0       POP              {LR, R4-R12}
+  123 0000006C 46F7            MOV              pc, lr
+  124 0000006E         
+  125 0000006E         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  126 0000006E         ; void* _memcpy(void* dest, void* src, unsigned int byte
+                       s)
+  127 0000006E         ; Parameters
+  128 0000006E         ; dest - a pointer to a heap address to copy to
+  129 0000006E         ; src - a pointer to a heap address to copy from
+  130 0000006E         ; bytes - number of bytes to copy from src to dest
+  131 0000006E                 EXPORT           _memcpy
+  132 0000006E         _memcpy
+  133 0000006E E92D 5FF0       PUSH             {LR, R4-R12}
+  134 00000072 F04F 0705       MOV              R7, #5
+
+
+
+ARM Macro Assembler    Page 4 
+
+
+  135 00000076 DF00            SVC              #0x0
+  136 00000078 E8BD 5FF0       POP              {LR, R4-R12}
+  137 0000007C 46F7            MOV              PC, LR
+  138 0000007E                 END
+Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M4.fp --apcs=int
+erwork --depend=.\stdlib.d -o.\stdlib.o -I.\RTE\_Target_1 -I"C:\Program Files\K
+eil\ARM\PACK\ARM\CMSIS\5.9.0\CMSIS\Core\Include" -I"C:\Program Files\Keil\ARM\P
+ACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C129" --predefine="__EVAL SETA 1" --p
+redefine="__UVISION_VERSION SETA 526" --predefine="_RTE_ SETA 1" --predefine="T
+M4C129XNCZAD SETA 1" --list=.\stdlib.lst stdlib.s
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+.text 00000000
+
+Symbol: .text
+   Definitions
+      At line 1 in file stdlib.s
+   Uses
+      None
+Comment: .text unused
+_alarm 0000004E
+
+Symbol: _alarm
+   Definitions
+      At line 96 in file stdlib.s
+   Uses
+      At line 95 in file stdlib.s
+Comment: _alarm used once
+_bzero 00000000
+
+Symbol: _bzero
+   Definitions
+      At line 12 in file stdlib.s
+   Uses
+      At line 11 in file stdlib.s
+Comment: _bzero used once
+_free 0000003E
+
+Symbol: _free
+   Definitions
+      At line 77 in file stdlib.s
+   Uses
+      At line 76 in file stdlib.s
+Comment: _free used once
+_malloc 0000002E
+
+Symbol: _malloc
+   Definitions
+      At line 60 in file stdlib.s
+   Uses
+      At line 59 in file stdlib.s
+Comment: _malloc used once
+_memcpy 0000006E
+
+Symbol: _memcpy
+   Definitions
+      At line 132 in file stdlib.s
+   Uses
+      At line 131 in file stdlib.s
+Comment: _memcpy used once
+_signal 0000005E
+
+Symbol: _signal
+   Definitions
+      At line 115 in file stdlib.s
+   Uses
+      At line 114 in file stdlib.s
+Comment: _signal used once
+_strncpy 00000018
+
+Symbol: _strncpy
+
+
+
+ARM Macro Assembler    Page 2 Alphabetic symbol ordering
+Relocatable symbols
+
+   Definitions
+      At line 36 in file stdlib.s
+   Uses
+      At line 35 in file stdlib.s
+Comment: _strncpy used once
+bzeroLoop 00000004
+
+Symbol: bzeroLoop
+   Definitions
+      At line 18 in file stdlib.s
+   Uses
+      At line 21 in file stdlib.s
+Comment: bzeroLoop used once
+end_bzero 0000000E
+
+Symbol: end_bzero
+   Definitions
+      At line 23 in file stdlib.s
+   Uses
+      At line 19 in file stdlib.s
+Comment: end_bzero used once
+end_strncpy 00000028
+
+Symbol: end_strncpy
+   Definitions
+      At line 50 in file stdlib.s
+   Uses
+      At line 45 in file stdlib.s
+Comment: end_strncpy used once
+strncpyLoop 0000001A
+
+Symbol: strncpyLoop
+   Definitions
+      At line 44 in file stdlib.s
+   Uses
+      At line 48 in file stdlib.s
+Comment: strncpyLoop used once
+12 symbols
+347 symbols in table

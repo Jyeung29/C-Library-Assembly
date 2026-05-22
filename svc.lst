@@ -1,0 +1,252 @@
+
+
+
+ARM Macro Assembler    Page 1 
+
+
+    1 00000000                 AREA             |.text|, CODE, READONLY, ALIGN=
+2
+    2 00000000                 THUMB
+    3 00000000         
+    4 00000000         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    5 00000000         ; System Call Table
+    6 00000000 20007B00 
+                       SYSTEMCALLTBL
+                               EQU              0x20007B00  ; originally 0x2000
+                                                            7500
+    7 00000000 00000000 
+                       SYS_EXIT
+                               EQU              0x0         ; address 20007B00
+    8 00000000 00000001 
+                       SYS_ALARM
+                               EQU              0x1         ; address 20007B04
+    9 00000000 00000002 
+                       SYS_SIGNAL
+                               EQU              0x2         ; address 20007B08
+   10 00000000 00000003 
+                       SYS_MALLOC
+                               EQU              0x3         ; address 20007B0C
+   11 00000000 00000004 
+                       SYS_FREE
+                               EQU              0x4         ; address 20007B10
+   12 00000000 00000005 
+                       SYS_MEMCPY
+                               EQU              0x5         ; address 20007B14
+   13 00000000         
+   14 00000000         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   15 00000000         ; System Call Table Initialization
+   16 00000000                 EXPORT           _syscall_table_init
+   17 00000000         _syscall_table_init
+   18 00000000         ;; Implement by yourself
+   19 00000000                 IMPORT           _kfree
+   20 00000000                 IMPORT           _kalloc
+   21 00000000                 IMPORT           _signal_handler
+   22 00000000                 IMPORT           _timer_start
+   23 00000000                 IMPORT           _kmemcpy
+   24 00000000         
+   25 00000000 490C            LDR              R1, =SYSTEMCALLTBL
+   26 00000002 4A0D            LDR              R2, =_timer_start ;Assign _time
+                                                            r_start to alarm
+   27 00000004 F841 2F04       STR              R2, [R1, #4]!
+   28 00000008 4A0C            LDR              R2, =_signal_handler ;Assign _s
+                                                            ignal_handler to si
+                                                            gnal
+   29 0000000A F841 2F04       STR              R2, [R1, #4]!
+   30 0000000E 4A0C            LDR              R2, =_kalloc
+   31 00000010 F841 2F04       STR              R2, [R1, #4]! ;Assign _kalloc t
+                                                            o malloc
+   32 00000014 4A0B            LDR              R2, =_kfree
+   33 00000016 F841 2F04       STR              R2, [R1, #4]! ;Assign _kfree to
+                                                             free
+   34 0000001A 4A0B            LDR              R2, =_kmemcpy
+   35 0000001C F841 2F04       STR              R2, [R1, #4]! ;Assign _kmemcpy 
+                                                            to _memcpy
+
+
+
+ARM Macro Assembler    Page 2 
+
+
+   36 00000020 46F7            MOV              pc, lr
+   37 00000022         
+   38 00000022         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   39 00000022         ; System Call Table Jump Routine
+   40 00000022                 EXPORT           _syscall_table_jump
+   41 00000022         _syscall_table_jump
+   42 00000022 B500            PUSH{LR}
+   43 00000024 4C03            LDR              R4, =SYSTEMCALLTBL
+   44 00000026 F854 5027       LDR              R5, [R4, R7, LSL #2] ;Pre-index
+                                                             address SYSTEMCALL
+                                                            TBL with offset of 
+                                                            R7 * 4 bits
+   45 0000002A 47A8            BLX              R5
+   46 0000002C         _syscall_jump_done
+   47 0000002C F85D EB04       POP{LR}
+   48 00000030 46F7            MOV              pc, lr
+   49 00000032                 END
+              00 00 20007B00 
+              00000000 
+              00000000 
+              00000000 
+              00000000 
+              00000000 
+Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M4.fp --apcs=int
+erwork --depend=.\svc.d -o.\svc.o -I.\RTE\_Target_1 -I"C:\Program Files\Keil\AR
+M\PACK\ARM\CMSIS\5.9.0\CMSIS\Core\Include" -I"C:\Program Files\Keil\ARM\PACK\Ke
+il\TM4C_DFP\1.1.0\Device\Include\TM4C129" --predefine="__EVAL SETA 1" --predefi
+ne="__UVISION_VERSION SETA 526" --predefine="_RTE_ SETA 1" --predefine="TM4C129
+XNCZAD SETA 1" --list=.\svc.lst svc.s
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+.text 00000000
+
+Symbol: .text
+   Definitions
+      At line 1 in file svc.s
+   Uses
+      None
+Comment: .text unused
+_syscall_jump_done 0000002C
+
+Symbol: _syscall_jump_done
+   Definitions
+      At line 46 in file svc.s
+   Uses
+      None
+Comment: _syscall_jump_done unused
+_syscall_table_init 00000000
+
+Symbol: _syscall_table_init
+   Definitions
+      At line 17 in file svc.s
+   Uses
+      At line 16 in file svc.s
+Comment: _syscall_table_init used once
+_syscall_table_jump 00000022
+
+Symbol: _syscall_table_jump
+   Definitions
+      At line 41 in file svc.s
+   Uses
+      At line 40 in file svc.s
+Comment: _syscall_table_jump used once
+4 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Absolute symbols
+
+SYSTEMCALLTBL 20007B00
+
+Symbol: SYSTEMCALLTBL
+   Definitions
+      At line 6 in file svc.s
+   Uses
+      At line 25 in file svc.s
+      At line 43 in file svc.s
+
+SYS_ALARM 00000001
+
+Symbol: SYS_ALARM
+   Definitions
+      At line 8 in file svc.s
+   Uses
+      None
+Comment: SYS_ALARM unused
+SYS_EXIT 00000000
+
+Symbol: SYS_EXIT
+   Definitions
+      At line 7 in file svc.s
+   Uses
+      None
+Comment: SYS_EXIT unused
+SYS_FREE 00000004
+
+Symbol: SYS_FREE
+   Definitions
+      At line 11 in file svc.s
+   Uses
+      None
+Comment: SYS_FREE unused
+SYS_MALLOC 00000003
+
+Symbol: SYS_MALLOC
+   Definitions
+      At line 10 in file svc.s
+   Uses
+      None
+Comment: SYS_MALLOC unused
+SYS_MEMCPY 00000005
+
+Symbol: SYS_MEMCPY
+   Definitions
+      At line 12 in file svc.s
+   Uses
+      None
+Comment: SYS_MEMCPY unused
+SYS_SIGNAL 00000002
+
+Symbol: SYS_SIGNAL
+   Definitions
+      At line 9 in file svc.s
+   Uses
+      None
+Comment: SYS_SIGNAL unused
+7 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+External symbols
+
+_kalloc 00000000
+
+Symbol: _kalloc
+   Definitions
+      At line 20 in file svc.s
+   Uses
+      At line 30 in file svc.s
+Comment: _kalloc used once
+_kfree 00000000
+
+Symbol: _kfree
+   Definitions
+      At line 19 in file svc.s
+   Uses
+      At line 32 in file svc.s
+Comment: _kfree used once
+_kmemcpy 00000000
+
+Symbol: _kmemcpy
+   Definitions
+      At line 23 in file svc.s
+   Uses
+      At line 34 in file svc.s
+Comment: _kmemcpy used once
+_signal_handler 00000000
+
+Symbol: _signal_handler
+   Definitions
+      At line 21 in file svc.s
+   Uses
+      At line 28 in file svc.s
+Comment: _signal_handler used once
+_timer_start 00000000
+
+Symbol: _timer_start
+   Definitions
+      At line 22 in file svc.s
+   Uses
+      At line 26 in file svc.s
+Comment: _timer_start used once
+5 symbols
+353 symbols in table
